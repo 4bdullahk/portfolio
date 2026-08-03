@@ -787,7 +787,7 @@ themeToggle.addEventListener('click', () => {
 (function initTypewriter(){
   const el = document.getElementById('typedText');
   if(!el) return;
-  const phrase = 'building full-stack web apps with MongoDB · Express · React · Node';
+  const phrase = 'building full-stack web apps.';
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
     el.textContent = phrase;
     return;
@@ -999,18 +999,31 @@ const projectData = [
     icon: "fa-solid fa-folder",
     files: [
       {
-        name: "pitchcraft.jsx", ext:"jsx", status:"Live",
+        name: "pitchcraft.jsx", ext:"jsx", status:"Under Deployment",
         title: "PitchCraft — AI-Powered Pitch Generator",
         desc: "Converts a single idea or product name into a complete UI concept and an investor-ready pitch, using generative AI to automate content and design creation. Front-end built in React with backend logic handling prompt processing and response formatting.",
-        stack: ["React", "Node.js", "Express", "MongoDB", "Generative AI API"],
-        links: { github:"#", live:"#" }
+        stack: ["React", "Node.js", "Express", "Firebase", "Generative AI API"],
+        links: {github:"https://github.com/4bdullahk/PitchCraft", live:"#" }
       },
       {
-        name: "ecommerce-ai.jsx", ext:"jsx", status:"In Progress",
-        title: "AI-Powered E-Commerce Platform",
-        desc: "[Placeholder — upcoming build] A full online store with an AI shopping-assistant chatbot for product discovery, cart management, and personalized recommendations.",
+        name: "optimerz.jsx", ext:"jsx", status:"In Progress",
+        title: "optiMerz — AI-Powered E-Commerce Platform",
+        desc: "A full online store with an AI shopping-assistant chatbot for product discovery, cart management, and personalized recommendations.",
         stack: ["React", "Node.js", "Express", "MongoDB", "AI Chatbot"],
-        links: { github:"#" }
+        links: { github:"#", live:"#" }
+      }
+    ]
+  },
+  {
+    folder: "front-end-apps",
+    icon: "fa-solid fa-folder",
+    files: [
+      {
+        name: "neon-calc.html", ext:"html", status:"Live",
+        title: "Neon Calculator",
+        desc: "A sleek, dark-themed Web Calculator featuring neon accents, built-in input validation, calculation history tracking, and responsive keyboard controls.",
+        stack: ["HTML", "CSS", "JavaScript"],
+        links: { github:"https://github.com/4bdullahk/Neon-Calculator", live:"http://abdullaht-calc.surge.sh/" }
       }
     ]
   },
@@ -1022,22 +1035,29 @@ const projectData = [
         name: "apple-clone.html", ext:"html", status:"Demo",
         title: "Apple — Landing Page Clone",
         desc: "[Placeholder — replace with your real build] Pixel-close recreation of Apple's product landing page, focused on scroll-driven reveals, typography rhythm, and smooth section transitions.",
-        stack: ["HTML", "CSS", "JavaScript"],
-        links: { github:"#", live:"#" }
+        stack: ["HTML", "CSS"],
+        links: { github:"https://github.com/4bdullahk/Apple-Landing-page-Clone", live:"#" }
       },
       {
         name: "upwork-clone.html", ext:"html", status:"Demo",
         title: "Upwork — Landing Page Clone",
-        desc: "[Placeholder — replace with your real build] Recreation of Upwork's marketing landing page, focused on responsive layout precision and component-based structure.",
-        stack: ["HTML", "CSS", "JavaScript"],
-        links: { github:"#", live:"#" }
+        desc: "Recreation of Upwork's marketing landing page, focused on responsive layout precision and component-based structure.",
+        stack: ["HTML", "CSS"],
+        links: { github:"https://github.com/4bdullahk/Upwork-Landing-page-Clone", live:"https://upwork-repl.surge.sh" }
       },
       {
         name: "netflix-clone.html", ext:"html", status:"Demo",
         title: "Netflix — Landing Page Clone",
         desc: "[Placeholder — replace with your real build] Recreation of Netflix's sign-up landing page, focused on hero layering and CTA-driven design.",
-        stack: ["HTML", "CSS", "JavaScript"],
+        stack: ["HTML", "CSS"],
         links: { github:"#", live:"#" }
+      },
+      {
+        name: "saylani-clone.html", ext:"html", status:"Demo",
+        title: "Saylani - Landing Page Clone",
+        desc: "A responsive pixel-perfect clone of the Saylani Welfare website landing page built to showcase front-end layouts, modern styling, and accurate UI replication.",
+        stack: ["HTML", "CSS"],
+        links: { github:"https://github.com/4bdullahk/Saylani-Website-UI-replica", live:"https://saylani-rep.surge.sh/" }
       }
     ]
   },
