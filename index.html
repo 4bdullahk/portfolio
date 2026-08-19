@@ -111,6 +111,28 @@
         mix-blend-mode: multiply;
       }
 
+      /* ============================================
+   AMBIENT CURSOR CREATURE — decorative background rig
+   Fixed full-viewport canvas, non-interactive, purely
+   cosmetic. Sits above section backgrounds (z-index:auto/0)
+   but below header/menu/progress-bar (1000+) so nav stays
+   crisp. See the closing script block for the animation logic.
+   ============================================ */
+      #creatureCanvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+        display: block;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #creatureCanvas {
+          display: none;
+        }
+      }
+
       ::selection {
         background: var(--wine);
         color: var(--cream-soft);
@@ -1477,6 +1499,8 @@
     </script>
   </head>
   <body>
+    <canvas id="creatureCanvas" aria-hidden="true"></canvas>
+
     <div class="progress-bar" id="progressBar"></div>
 
     <header id="siteHeader">
@@ -2269,8 +2293,8 @@
             {
               name: "pitchonez.jsx",
               ext: "jsx",
-              status: "V1.0 Live",
-              title: "PitchOneZ — AI-Powered Pitch Generator",
+              status: "Live",
+              title: "PitchOneZ v1.0 — AI-Powered Pitch Generator",
               desc: "Converts a single idea or product name into a complete UI concept and an investor-ready pitch, using generative AI to automate content and design creation. Front-end built in React with backend logic handling prompt processing and response formatting.",
               stack: [
                 "React",
@@ -2489,6 +2513,366 @@
           return;
         }
       });
+    </script>
+
+    <!-- ============================================================
+   AMBIENT CURSOR CREATURE
+   Purely decorative full-page canvas rig: a jointed "spine" chases
+   the pointer, dragging a fishbone ribcage and four IK legs behind
+   it. Self-contained IIFE — touches nothing else on the page,
+   listens with passive/no-op-safe handlers only, and pauses itself
+   when the tab is hidden or the OS requests reduced motion.
+   ============================================================ -->
+    <script>
+      (function () {
+        "use strict";
+        var canvas = document.getElementById("creatureCanvas");
+        if (!canvas || !canvas.getContext) return;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+          return;
+
+        var ctx = canvas.getContext("2d", { alpha: true });
+
+        /* ---------- brand color (matches --wine-bright, used
+           elsewhere in this file as the on-dark/on-light accent) --- */
+        var LINE_RGB = "166,76,83";
+        function col(a) {
+          return "rgba(" + LINE_RGB + "," + a + ")";
+        }
+
+        /* ---------- sizing ---------- */
+        var vw = window.innerWidth,
+          vh = window.innerHeight;
+        var scale = 1,
+          segLen = 10;
+
+        function resize() {
+          vw = window.innerWidth;
+          vh = window.innerHeight;
+          var dpr = Math.min(window.devicePixelRatio || 1, 2);
+          canvas.width = Math.round(vw * dpr);
+          canvas.height = Math.round(vh * dpr);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          scale = Math.min(1.15, Math.max(0.55, Math.min(vw, vh) / 900));
+          segLen = 10 * scale;
+        }
+
+        /* ---------- spine chain ---------- */
+        var SEGMENTS = 30;
+        var spine = [];
+        for (var s = 0; s < SEGMENTS; s++) spine.push({ x: vw / 2, y: vh / 2 });
+
+        /* ---------- legs: attach index along spine, side (-1/1), front/back ---------- */
+        var legs = [
+          { idx: 7, side: -1, fb: 1 },
+          { idx: 7, side: 1, fb: 1 },
+          { idx: 20, side: -1, fb: -1 },
+          { idx: 20, side: 1, fb: -1 },
+        ].map(function (def) {
+          def.foot = { x: vw / 2, y: vh / 2 };
+          def.stepping = false;
+          def.stepFrom = { x: 0, y: 0 };
+          def.stepTo = { x: 0, y: 0 };
+          def.stepT = 0;
+          return def;
+        });
+
+        /* ---------- pointer / touch / idle-wander targeting ---------- */
+        var isFinePointer = window.matchMedia(
+          "(hover: hover) and (pointer: fine)",
+        ).matches;
+        var target = { x: vw / 2, y: vh / 2 };
+        var hasPointer = false;
+        var lastTouch = 0;
+
+        window.addEventListener(
+          "mousemove",
+          function (e) {
+            target.x = e.clientX;
+            target.y = e.clientY;
+            hasPointer = true;
+          },
+          { passive: true },
+        );
+        window.addEventListener(
+          "touchmove",
+          function (e) {
+            var t = e.touches && e.touches[0];
+            if (!t) return;
+            target.x = t.clientX;
+            target.y = t.clientY;
+            hasPointer = true;
+            lastTouch = performance.now();
+          },
+          { passive: true },
+        );
+        window.addEventListener(
+          "touchstart",
+          function (e) {
+            var t = e.touches && e.touches[0];
+            if (!t) return;
+            target.x = t.clientX;
+            target.y = t.clientY;
+            hasPointer = true;
+            lastTouch = performance.now();
+          },
+          { passive: true },
+        );
+
+        /* mobile / no cursor: a slow autonomous wander so the rig is
+           always alive even without any touch input */
+        function wanderTarget(t) {
+          var cx = vw * 0.5,
+            cy = vh * 0.42;
+          var rx = Math.min(vw, vh) * 0.3,
+            ry = Math.min(vw, vh) * 0.22;
+          return {
+            x: cx + Math.sin(t * 0.55) * rx + Math.sin(t * 0.19) * rx * 0.3,
+            y: cy + Math.cos(t * 0.4) * ry + Math.sin(t * 0.27) * ry * 0.35,
+          };
+        }
+
+        /* ---------- helpers ---------- */
+        function tangentAndPerp(ax, ay, bx, by) {
+          var dx = bx - ax,
+            dy = by - ay;
+          var len = Math.hypot(dx, dy) || 1;
+          dx /= len;
+          dy /= len;
+          return { tx: dx, ty: dy, px: -dy, py: dx };
+        }
+
+        var inited = false;
+        var last = 0;
+
+        function frame(now) {
+          requestAnimationFrame(frame);
+          if (document.hidden) {
+            last = now;
+            return;
+          }
+          var dt = last ? (now - last) / 1000 : 0.016;
+          dt = Math.min(dt, 0.05);
+          last = now;
+          var t = now / 1000;
+
+          /* pick the current target: live cursor, recent touch, or idle wander */
+          var tx, ty;
+          if (isFinePointer && hasPointer) {
+            tx = target.x;
+            ty = target.y;
+          } else if (!isFinePointer && hasPointer && now - lastTouch < 2500) {
+            tx = target.x;
+            ty = target.y;
+          } else {
+            var w = wanderTarget(t);
+            tx = w.x;
+            ty = w.y;
+          }
+
+          if (!inited) {
+            for (var i0 = 0; i0 < SEGMENTS; i0++) {
+              spine[i0].x = tx;
+              spine[i0].y = ty;
+            }
+            legs.forEach(function (l) {
+              l.foot.x = tx;
+              l.foot.y = ty;
+            });
+            inited = true;
+          }
+
+          /* ease the head toward the target, frame-rate independent */
+          var headEase = 1 - Math.pow(1 - 0.16, dt * 60);
+          spine[0].x += (tx - spine[0].x) * headEase;
+          spine[0].y += (ty - spine[0].y) * headEase;
+
+          /* rope-follow constraint down the spine */
+          for (var i = 1; i < SEGMENTS; i++) {
+            var a = spine[i - 1],
+              b = spine[i];
+            var dx = b.x - a.x,
+              dy = b.y - a.y;
+            var dist = Math.hypot(dx, dy) || 0.0001;
+            var diff = (dist - segLen) / dist;
+            b.x -= dx * diff;
+            b.y -= dy * diff;
+          }
+
+          /* ---------- draw ---------- */
+          ctx.clearRect(0, 0, vw, vh);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+
+          /* spine + fishbone ribs, one stroked path */
+          ctx.beginPath();
+          ctx.moveTo(spine[0].x, spine[0].y);
+          for (var i1 = 1; i1 < SEGMENTS; i1++)
+            ctx.lineTo(spine[i1].x, spine[i1].y);
+
+          var ribStart = 3,
+            ribEnd = SEGMENTS - 4;
+          for (var ri = ribStart; ri <= ribEnd; ri++) {
+            var prev = spine[Math.max(0, ri - 1)];
+            var next = spine[Math.min(SEGMENTS - 1, ri + 1)];
+            var tp = tangentAndPerp(prev.x, prev.y, next.x, next.y);
+            var tt = (ri - ribStart) / (ribEnd - ribStart);
+            var env = Math.sin(tt * Math.PI);
+            var ribLen = (4 + env * 15) * scale;
+            for (var side = -1; side <= 1; side += 2) {
+              var ex = spine[ri].x + tp.px * side * ribLen - tp.tx * ribLen * 0.55;
+              var ey = spine[ri].y + tp.py * side * ribLen - tp.ty * ribLen * 0.55;
+              ctx.moveTo(spine[ri].x, spine[ri].y);
+              ctx.lineTo(ex, ey);
+            }
+          }
+          ctx.strokeStyle = col(0.2);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          /* legs: 2-bone IK with stepping feet */
+          ctx.beginPath();
+          var clawSegs = [];
+          var upperLen = 20 * scale,
+            lowerLen = 20 * scale,
+            stepThresh = 16 * scale,
+            stepSpeed = 5.5;
+
+          legs.forEach(function (leg) {
+            var hipBase = spine[leg.idx];
+            var prev = spine[Math.max(0, leg.idx - 1)];
+            var next = spine[Math.min(SEGMENTS - 1, leg.idx + 1)];
+            var tp = tangentAndPerp(prev.x, prev.y, next.x, next.y);
+
+            var hip = {
+              x: hipBase.x + tp.px * leg.side * 3 * scale,
+              y: hipBase.y + tp.py * leg.side * 3 * scale,
+            };
+            var idealFoot = {
+              x: hipBase.x + tp.px * leg.side * 26 * scale + tp.tx * leg.fb * 10 * scale,
+              y: hipBase.y + tp.py * leg.side * 26 * scale + tp.ty * leg.fb * 10 * scale,
+            };
+
+            if (!leg.stepping) {
+              var dfx = idealFoot.x - leg.foot.x,
+                dfy = idealFoot.y - leg.foot.y;
+              if (Math.hypot(dfx, dfy) > stepThresh) {
+                leg.stepping = true;
+                leg.stepT = 0;
+                leg.stepFrom.x = leg.foot.x;
+                leg.stepFrom.y = leg.foot.y;
+                leg.stepTo.x = idealFoot.x;
+                leg.stepTo.y = idealFoot.y;
+              }
+            }
+            if (leg.stepping) {
+              leg.stepT += dt * stepSpeed;
+              var sT = Math.min(leg.stepT, 1);
+              var ease = 1 - Math.pow(1 - sT, 3);
+              var bump = Math.sin(sT * Math.PI) * 6 * scale;
+              leg.foot.x =
+                leg.stepFrom.x +
+                (leg.stepTo.x - leg.stepFrom.x) * ease +
+                tp.px * leg.side * bump;
+              leg.foot.y =
+                leg.stepFrom.y +
+                (leg.stepTo.y - leg.stepFrom.y) * ease +
+                tp.py * leg.side * bump;
+              if (sT >= 1) {
+                leg.stepping = false;
+                leg.foot.x = leg.stepTo.x;
+                leg.foot.y = leg.stepTo.y;
+              }
+            }
+
+            /* 2-bone IK from hip to foot */
+            var hx = leg.foot.x - hip.x,
+              hy = leg.foot.y - hip.y;
+            var d = Math.hypot(hx, hy) || 0.0001;
+            var maxReach = upperLen + lowerLen - 0.5;
+            if (d > maxReach) {
+              var k = maxReach / d;
+              hx *= k;
+              hy *= k;
+              d = maxReach;
+            }
+            var cosA = (upperLen * upperLen + d * d - lowerLen * lowerLen) / (2 * upperLen * d);
+            cosA = Math.max(-1, Math.min(1, cosA));
+            var angle1 = Math.acos(cosA);
+            var baseAngle = Math.atan2(hy, hx);
+            var bendDir = leg.side * leg.fb >= 0 ? 1 : -1;
+            var kneeAngle = baseAngle + angle1 * bendDir;
+            var knee = {
+              x: hip.x + Math.cos(kneeAngle) * upperLen,
+              y: hip.y + Math.sin(kneeAngle) * upperLen,
+            };
+            var foot = { x: hip.x + hx, y: hip.y + hy };
+
+            ctx.moveTo(hip.x, hip.y);
+            ctx.lineTo(knee.x, knee.y);
+            ctx.lineTo(foot.x, foot.y);
+
+            var ang = Math.atan2(foot.y - knee.y, foot.x - knee.x);
+            clawSegs.push({ x: foot.x, y: foot.y, ang: ang });
+          });
+          ctx.strokeStyle = col(0.22);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          /* claw / toe marks at each foot */
+          ctx.beginPath();
+          var clawLen = 7 * scale;
+          clawSegs.forEach(function (c) {
+            [-0.7, 0, 0.7].forEach(function (spread) {
+              var a = c.ang + spread * 0.6;
+              ctx.moveTo(c.x, c.y);
+              ctx.lineTo(c.x + Math.cos(a) * clawLen, c.y + Math.sin(a) * clawLen);
+            });
+          });
+          ctx.strokeStyle = col(0.16);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          /* head: small hollow eye + forked snout, tail: small taper marks */
+          var h = spine[0],
+            h1 = spine[1] || h;
+          var htp = tangentAndPerp(h1.x, h1.y, h.x, h.y);
+          ctx.beginPath();
+          ctx.arc(
+            h.x + htp.tx * 6 * scale,
+            h.y + htp.ty * 6 * scale,
+            2.4 * scale,
+            0,
+            Math.PI * 2,
+          );
+          ctx.strokeStyle = col(0.26);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.beginPath();
+          [-0.5, 0.5].forEach(function (spread) {
+            var a = Math.atan2(htp.ty, htp.tx) + spread;
+            ctx.moveTo(h.x, h.y);
+            ctx.lineTo(h.x + Math.cos(a) * 9 * scale, h.y + Math.sin(a) * 9 * scale);
+          });
+          var tail = spine[SEGMENTS - 1],
+            tail1 = spine[SEGMENTS - 2] || tail;
+          var ttp = tangentAndPerp(tail1.x, tail1.y, tail.x, tail.y);
+          [-0.5, 0.5].forEach(function (spread) {
+            var a = Math.atan2(ttp.ty, ttp.tx) + spread;
+            ctx.moveTo(tail.x, tail.y);
+            ctx.lineTo(tail.x + Math.cos(a) * 6 * scale, tail.y + Math.sin(a) * 6 * scale);
+          });
+          ctx.strokeStyle = col(0.2);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        resize();
+        window.addEventListener("resize", resize, { passive: true });
+        window.addEventListener("orientationchange", resize, { passive: true });
+        requestAnimationFrame(frame);
+      })();
     </script>
   </body>
 </html>
